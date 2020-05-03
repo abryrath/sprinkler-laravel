@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Forecast;
+use Carbon\Carbon;
 
 class ForecastRepository implements ForecastRepositoryInterface
 {
@@ -45,10 +46,48 @@ class ForecastRepository implements ForecastRepositoryInterface
     }
 
     /**
+     * Refresh the data if it was last updated more than 12
+     * hours ago
+     */
+    public function shouldRefresh(): bool
+    {
+        $today = Carbon::now("UTC");
+        $latest = Forecast::query()
+            ->latest()
+            ->first();
+        var_dump($latest);
+        $latestDate = new Carbon($latest->date_created, "UTC");
+        echo "today: " . $today->format('Y-m-d h:m:s');
+        echo " latest: " . $latestDate->format('Y-m-d h:m:s');
+        die;
+        $cutoff = $today->subHours(12);
+        return $latestDate->isAfter($cutoff);
+    }
+
+    /**
      * @inheritdoc
      */
     public function fromApi($data)
     {
-        return [];
+        $main = $data['main'];
+        $weather = $data['weather'][0];
+        $wind = $data['wind'];
+        $dt = (int) $data['dt'];
+
+        $attributes = [
+            'hour' => Forecast::timestampToHour($dt),
+            'date' => Forecast::timestampToDate($dt),
+            'humidity' => $main['humidity'],
+            'temp' => Forecast::kelvinToF($main['temp']),
+            'feels_like' => Forecast::kelvinToF($main['feels_like']),
+            'description' => $weather['description'],
+            'summary' => $weather['main'],
+            'wind_speed' => $wind['speed'],
+            'wind_dir' => $wind['deg'],
+            'pressure' => $main['pressure'],
+        ];
+        $forecast = new Forecast($attributes);
+        $forecast->save();
+        return $forecast;
     }
 }

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Repositories\ForecastRepositoryInterface;
 use App\Services\OpenWeatherAPI;
-use Illuminate\Http\Request;
 
 class ForecastController extends Controller
 {

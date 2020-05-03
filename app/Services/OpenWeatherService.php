@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
-use GuzzleHttp\Client;
-use Illuminate\Database\Eloquent\Collection;
 use App\Repositories\ForecastRepositoryInterface;
+use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Database\Eloquent\Collection;
 
 class OpenWeatherService implements OpenWeatherAPI
 {
@@ -16,6 +16,8 @@ class OpenWeatherService implements OpenWeatherAPI
 
     public function getForecast(ForecastRepositoryInterface $forecasts)
     {
+        $shouldRefresh = $forecasts->shouldRefresh();
+        var_dump($shouldRefresh);die;
         /** @var Collection */
         $today = $forecasts->today();
         if (!$today->isEmpty()) {
@@ -24,7 +26,7 @@ class OpenWeatherService implements OpenWeatherAPI
 
         $resp = $this->getClient()
             ->get(self::FORECAST_URI);
-        $models = $this->parseResponse($resp);
+        $models = $this->parseResponse($resp, $forecasts);
         return $models;
     }
 
@@ -42,13 +44,19 @@ class OpenWeatherService implements OpenWeatherAPI
         return $this->client;
     }
 
-    private function parseResponse(Response $resp)
+    private function parseResponse(Response $resp, ForecastRepositoryInterface $forecasts)
     {
         $body = $resp->getBody();
         $json_contents = $body->getContents();
         $contents = json_decode($json_contents, true);
+        $list = $contents['list'];
 
+        // $today = (new \DateTime())->format('Y-m-d');
 
-        return [];
+        $parsed = [];
+        foreach ($list as $f) {
+            $parsed[] = $forecasts->fromApi($f);
+        }
+        return $collect($parsed);
     }
 }
